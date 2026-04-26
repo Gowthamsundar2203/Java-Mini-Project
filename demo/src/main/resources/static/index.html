@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ParkOS – Parking Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f6f5f1;
+      --surface:   #ffffff;
+      --border:    #e2e0d8;
+      --text:      #1a1916;
+      --muted:     #8a8780;
+      --green:     #2d6a4f;
+      --green-bg:  #eaf4ef;
+      --red:       #c0392b;
+      --red-bg:    #fdf0ef;
+      --accent:    #c94b3c;
+      --mono:      'DM Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+      --display:   'Space Grotesk', sans-serif;
+      --radius:    12px;
+      --shadow:    0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+    }
+
+    html { font-size: 15px; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      height: 58px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .brand {
+      display: flex; align-items: center; gap: .6rem;
+      font-family: var(--display); font-size: 1.15rem; font-weight: 800;
+      color: var(--text); text-decoration: none;
+    }
+    .brand-icon {
+      width: 30px; height: 30px; background: var(--text);
+      border-radius: 7px; display: grid; place-items: center;
+    }
+    .brand-icon svg { width: 16px; height: 16px; fill: var(--bg); }
+    .brand sub { font-family: var(--sans); font-size: .65rem; font-weight: 300; color: var(--muted); display: block; line-height: 1; }
+    .nav-links {
+      display: flex; gap: 0; margin-left: 2.5rem;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .nav-link {
+      padding: .45rem 1.1rem; font-size: .82rem; font-weight: 500;
+      cursor: pointer; transition: background .15s, color .15s;
+      color: var(--muted); border: none; background: transparent; font-family: var(--sans);
+    }
+    .nav-link.active, .nav-link:hover { background: var(--text); color: var(--bg); }
+    .live-pill {
+      margin-left: auto; display: flex; align-items: center; gap: .4rem;
+      font-size: .78rem; color: var(--green); font-weight: 500;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── LAYOUT ── */
+    main { max-width: 1080px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── SECTION ── */
+    section { display: none; }
+    section.active { display: block; }
+
+    /* ── STAT CARDS ── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.4rem 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    .stat-label {
+      font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); font-weight: 500; margin-bottom: .6rem;
+    }
+    .stat-value {
+      font-family: var(--display); font-size: 2.4rem; font-weight: 800; line-height: 1;
+      margin-bottom: .25rem;
+    }
+    .stat-sub { font-size: .78rem; color: var(--muted); }
+
+    /* ── SLOT MAP ── */
+    .section-label {
+      font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); font-weight: 500; margin-bottom: 1rem;
+    }
+    .slots-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 2rem;
+    }
+    .slot-card {
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.1rem 1.2rem; background: var(--surface);
+      transition: transform .15s, box-shadow .15s;
+      cursor: default;
+    }
+    .slot-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .slot-card.available { border-color: #b7dfc9; background: var(--green-bg); }
+    .slot-card.occupied  { border-color: #f0b8b3; background: var(--red-bg); }
+    .slot-num {
+      font-family: var(--display); font-size: 1.3rem; font-weight: 700; margin-bottom: .35rem;
+    }
+    .slot-card.available .slot-num { color: var(--green); }
+    .slot-card.occupied  .slot-num { color: var(--red); }
+    .slot-status {
+      font-size: .78rem; font-weight: 500; display: flex; align-items: center; gap: .35rem;
+    }
+    .slot-status::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; display: inline-block;
+    }
+    .slot-card.available .slot-status { color: var(--green); }
+    .slot-card.available .slot-status::before { background: var(--green); }
+    .slot-card.occupied  .slot-status { color: var(--red); }
+    .slot-card.occupied  .slot-status::before { background: var(--red); }
+
+    /* ── FORMS ── */
+    .forms-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow);
+    }
+    .form-card h3 {
+      font-family: var(--display); font-weight: 700; font-size: 1.05rem;
+      margin-bottom: 1.2rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .form-card h3 .icon { font-size: 1rem; }
+    label {
+      display: block; font-size: .78rem; font-weight: 500; color: var(--muted);
+      letter-spacing: .04em; margin-bottom: .35rem; margin-top: .85rem;
+    }
+    label:first-of-type { margin-top: 0; }
+    input[type=text] {
+      width: 100%; padding: .65rem .85rem; border: 1.5px solid var(--border);
+      border-radius: 8px; font-family: var(--mono); font-size: .85rem;
+      background: var(--bg); color: var(--text);
+      transition: border-color .15s, box-shadow .15s; outline: none;
+    }
+    input[type=text]:focus { border-color: var(--text); box-shadow: 0 0 0 3px rgba(26,25,22,.08); }
+    input[type=text]::placeholder { color: var(--muted); opacity: .7; }
+
+    .btn {
+      display: block; width: 100%; margin-top: 1.2rem;
+      padding: .7rem 1rem; border: none; border-radius: 8px;
+      font-family: var(--sans); font-size: .85rem; font-weight: 600;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+      letter-spacing: .02em; text-align: center;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn:hover  { opacity: .88; }
+    .btn-park { background: var(--text); color: var(--bg); }
+    .btn-exit { background: var(--accent); color: #fff; }
+
+    .toast {
+      display: none; margin-top: .9rem; padding: .6rem .85rem;
+      border-radius: 8px; font-size: .82rem; font-weight: 500;
+    }
+    .toast.ok  { background: var(--green-bg); color: var(--green); border: 1px solid #b7dfc9; }
+    .toast.err { background: var(--red-bg);   color: var(--red);   border: 1px solid #f0b8b3; }
+    .toast.show { display: block; }
+
+    /* ── RECORDS ── */
+    .records-header {
+      display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 1.5rem;
+    }
+    .records-title { font-family: var(--display); font-size: 1.6rem; font-weight: 800; }
+    .records-sub   { font-size: .82rem; color: var(--muted); margin-top: .2rem; }
+    .btn-refresh {
+      display: flex; align-items: center; gap: .4rem;
+      font-size: .8rem; font-weight: 500; color: var(--muted);
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      padding: .45rem .9rem; cursor: pointer; font-family: var(--sans);
+      transition: background .15s; white-space: nowrap;
+    }
+    .btn-refresh:hover { background: var(--border); color: var(--text); }
+
+    .rec-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 1.5rem; }
+
+    .tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; margin-bottom: 1.2rem; }
+    .tab-btn {
+      padding: .45rem 1.1rem; font-size: .82rem; font-weight: 500;
+      cursor: pointer; border: none; background: transparent; font-family: var(--sans);
+      color: var(--muted); transition: background .15s, color .15s;
+    }
+    .tab-btn.active { background: var(--text); color: var(--bg); }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-bottom: 2px solid var(--border); }
+    th {
+      font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); font-weight: 500; padding: .6rem .5rem; text-align: left;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:hover { background: var(--bg); }
+    td { padding: .75rem .5rem; font-size: .85rem; vertical-align: middle; }
+    .vehicle-num { font-family: var(--mono); font-weight: 500; letter-spacing: .03em; }
+    .badge {
+      display: inline-block; padding: .25rem .65rem; border-radius: 20px;
+      font-size: .72rem; font-weight: 600; letter-spacing: .04em;
+    }
+    .badge-done   { background: var(--green-bg); color: var(--green); }
+    .badge-parked { background: var(--red-bg);   color: var(--red); }
+    .fee { font-family: var(--mono); font-weight: 500; }
+    .time { font-size: .78rem; color: var(--muted); }
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+
+    /* ── LOADING SKELETON ── */
+    .skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; display: inline-block; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .stats-row, .slots-grid, .forms-row, .rec-stats { grid-template-columns: 1fr 1fr; }
+      .forms-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="#">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 4a4 4 0 0 0-4 4v5h2v-3h4v3h2v-5a4 4 0 0 0-4-4zm0 2a2 2 0 0 1 2 2v1h-4v-1a2 2 0 0 1 2-2z"/></svg>
+    </div>
+    ParkOS <sub>Parking Management System</sub>
+  </a>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showTab('dashboard', this)">Dashboard</button>
+    <button class="nav-link" onclick="showTab('records', this)">Parking Records</button>
+  </div>
+  <div class="live-pill"><div class="live-dot"></div>Live</div>
+</nav>
+
+<main>
+
+  <!-- ── DASHBOARD ── -->
+  <section id="dashboard" class="active">
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Slots</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-sub">Registered bays</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Available</div>
+        <div class="stat-value" id="stat-avail" style="color:var(--green)">—</div>
+        <div class="stat-sub">Free right now</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Occupied</div>
+        <div class="stat-value" id="stat-occ" style="color:var(--red)">—</div>
+        <div class="stat-sub">Active vehicles</div>
+      </div>
+    </div>
+
+    <div class="section-label">Slot Map</div>
+    <div class="slots-grid" id="slots-grid">
+      <!-- injected by JS -->
+    </div>
+
+    <div class="forms-row">
+      <!-- Park -->
+      <div class="form-card">
+        <h3><span class="icon">🚗</span> Park Vehicle</h3>
+        <label for="in-vehicle">Vehicle Number</label>
+        <input type="text" id="in-vehicle" placeholder="e.g. TN01AB1234">
+        <label for="in-owner">Owner Name</label>
+        <input type="text" id="in-owner" placeholder="e.g. Gowtham">
+        <button class="btn btn-park" onclick="park()">Park Vehicle →</button>
+        <div class="toast" id="park-toast"></div>
+      </div>
+
+      <!-- Exit -->
+      <div class="form-card">
+        <h3><span class="icon">🏁</span> Exit Vehicle</h3>
+        <label for="out-vehicle">Vehicle Number</label>
+        <input type="text" id="out-vehicle" placeholder="e.g. TN01AB1234">
+        <button class="btn btn-exit" onclick="exitVehicle()">Exit & Calculate Fee →</button>
+        <div class="toast" id="exit-toast"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── PARKING RECORDS ── -->
+  <section id="records">
+
+    <div class="records-header">
+      <div>
+        <div class="records-title">Parking Records</div>
+        <div class="records-sub" id="rec-count">Loading…</div>
+      </div>
+      <button class="btn-refresh" onclick="loadRecords()">↻ Refresh</button>
+    </div>
+
+    <div class="rec-stats stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Records</div>
+        <div class="stat-value" id="rs-total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Currently Parked</div>
+        <div class="stat-value" id="rs-active" style="color:var(--red)">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value" id="rs-revenue" style="color:var(--green); font-size:1.8rem">—</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="filterRecords('all', this)">All</button>
+      <button class="tab-btn" onclick="filterRecords('parked', this)">Parked</button>
+      <button class="tab-btn" onclick="filterRecords('completed', this)">Completed</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Vehicle</th>
+            <th>Entry Time</th>
+            <th>Exit Time</th>
+            <th>Fee</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="rec-body">
+          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">Loading records…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+</main>
+
+<script>
+/* ─── NAVIGATION ─── */
+function showTab(id, btn) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'records') loadRecords();
+}
+
+/* ─── TOAST ─── */
+function toast(id, msg, ok) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'toast show ' + (ok ? 'ok' : 'err');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+/* ─── FORMAT HELPERS ─── */
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  return d.toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
+}
+function fmtFee(f) { return f == null ? '₹0' : '₹' + f; }
+
+/* ─── SLOTS ─── */
+async function loadSlots() {
+  try {
+    const res = await fetch('/slots');
+    const slots = await res.json();
+
+    const avail = slots.filter(s => s.status === 'FREE').length;
+    const occ   = slots.filter(s => s.status === 'OCCUPIED').length;
+
+    document.getElementById('stat-total').textContent = slots.length;
+    document.getElementById('stat-avail').textContent = avail;
+    document.getElementById('stat-occ').textContent   = occ;
+
+    const grid = document.getElementById('slots-grid');
+    grid.innerHTML = slots.map(s => {
+      const free = s.status === 'FREE';
+      return `
+        <div class="slot-card ${free ? 'available' : 'occupied'}">
+          <div class="slot-num">${s.slot_number}</div>
+          <div class="slot-status">${free ? 'Available' : 'Occupied'}</div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('Slots error', e);
+  }
+}
+
+/* ─── PARK ─── */
+async function park() {
+  const v = document.getElementById('in-vehicle').value.trim();
+  const o = document.getElementById('in-owner').value.trim();
+  if (!v || !o) return toast('park-toast', 'Please fill in both fields.', false);
+
+  try {
+    const res = await fetch(`/park?vehicle=${encodeURIComponent(v)}&owner=${encodeURIComponent(o)}`, { method: 'POST' });
+    const txt = await res.text();
+    toast('park-toast', txt, res.ok);
+    if (res.ok) {
+      document.getElementById('in-vehicle').value = '';
+      document.getElementById('in-owner').value = '';
+      loadSlots();
+    }
+  } catch { toast('park-toast', 'Network error.', false); }
+}
+
+/* ─── EXIT ─── */
+async function exitVehicle() {
+  const v = document.getElementById('out-vehicle').value.trim();
+  if (!v) return toast('exit-toast', 'Please enter a vehicle number.', false);
+
+  try {
+    const res = await fetch(`/exit?vehicle=${encodeURIComponent(v)}`, { method: 'POST' });
+    const txt = await res.text();
+    toast('exit-toast', txt, res.ok);
+    if (res.ok) {
+      document.getElementById('out-vehicle').value = '';
+      loadSlots();
+    }
+  } catch { toast('exit-toast', 'Network error.', false); }
+}
+
+/* ─── RECORDS ─── */
+let allRecords = [];
+let currentFilter = 'all';
+
+async function loadRecords() {
+  const body = document.getElementById('rec-body');
+  body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">Loading…</td></tr>';
+  try {
+    const res = await fetch('/records');
+    if (!res.ok) throw new Error('No /records endpoint');
+    const raw = await res.json();
+
+    // Normalize: support both snake_case (vehicle_number) and camelCase (vehicleNumber)
+    allRecords = raw.map(r => ({
+      vehicle_number: r.vehicle_number || r.vehicleNumber || r.vehicle || '—',
+      entry_time:     r.entry_time     || r.entryTime     || r.entry   || null,
+      exit_time:      r.exit_time      || r.exitTime      || r.exit    || null,
+      fee:            r.fee            != null ? r.fee : null,
+    }));
+
+    renderRecords();
+
+    const total   = allRecords.length;
+    const active  = allRecords.filter(r => !r.exit_time).length;
+    const revenue = allRecords.reduce((a, r) => a + (r.fee || 0), 0);
+
+    document.getElementById('rec-count').textContent = total + ' total records';
+    document.getElementById('rs-total').textContent   = total;
+    document.getElementById('rs-active').textContent  = active;
+    document.getElementById('rs-revenue').textContent = '₹' + revenue;
+  } catch (e) {
+    document.getElementById('rec-count').textContent = 'Could not load';
+    document.getElementById('rs-total').textContent  = '—';
+    document.getElementById('rs-active').textContent = '—';
+    document.getElementById('rs-revenue').textContent= '—';
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem">
+      <div style="color:var(--red);font-weight:600;margin-bottom:.5rem">⚠ /records endpoint not found</div>
+      <div style="color:var(--muted);font-size:.82rem">Add a <code style="background:var(--bg);padding:.1rem .4rem;border-radius:4px">GET /records</code> endpoint to your ParkingController.java<br>
+      See the fix instructions below the table.</div>
+    </td></tr>`;
+  }
+}
+
+function filterRecords(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecords();
+}
+
+function renderRecords() {
+  const filtered = allRecords.filter(r => {
+    if (currentFilter === 'parked')    return !r.exit_time;
+    if (currentFilter === 'completed') return !!r.exit_time;
+    return true;
+  });
+
+  if (!filtered.length) {
+    document.getElementById('rec-body').innerHTML =
+      '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">No records found.</td></tr>';
+    return;
+  }
+
+  document.getElementById('rec-body').innerHTML = filtered.map((r, i) => {
+    const done = !!r.exit_time;
+    return `
+      <tr>
+        <td style="color:var(--muted);font-family:var(--mono)">${String(i+1).padStart(2,'0')}</td>
+        <td><span class="vehicle-num">${r.vehicle_number}</span></td>
+        <td><span class="time">${fmtDate(r.entry_time)}</span></td>
+        <td><span class="time">${fmtDate(r.exit_time)}</span></td>
+        <td><span class="fee">${fmtFee(r.fee)}</span></td>
+        <td><span class="badge ${done ? 'badge-done' : 'badge-parked'}">${done ? 'Completed' : 'Parked'}</span></td>
+      </tr>`;
+  }).join('');
+}
+
+/* ─── INIT ─── */
+loadSlots();
+setInterval(loadSlots, 30000);
+</script>
+
+</body>
+</html>
